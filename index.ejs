@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Guys - <%= room %></title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 20px auto; background: white; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1); overflow: hidden; display: flex; }
+    .sidebar { width: 250px; background: #343a40; color: white; padding: 20px; }
+    .sidebar h2 { margin-top: 0; }
+    .users { list-style: none; padding: 0; }
+    .users li { padding: 8px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; }
+    header { background: #007bff; color: white; padding: 20px; text-align: center; }
+    #messages { flex: 1; overflow-y: auto; padding: 20px; }
+    .message { margin: 10px 0; padding: 10px 15px; background: #e9ecef; border-radius: 15px; max-width: 70%; }
+    .my-message { background: #007bff; color: white; margin-left: auto; border-bottom-right-radius: 5px; }
+    #input-area { padding: 20px; display: flex; flex-direction: column; background: #f8f9fa; }
+    input { padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+    button { padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    #typing { padding: 10px; color: #666; font-style: italic; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>Комната: <%= room %></h2>
+      <p>Онлайн:</p>
+      <ul id="users-list" class="users"></ul>
+      <p style="font-size:12px; margin-top:30px;">My Guys alpha 1.1 🔥</p>
+    </div>
+
+    <div class="chat-area">
+      <header>
+        <h1>My Guys</h1>
+        <p>Чат только для своих</p>
+      </header>
+      <div id="messages"></div>
+      <div id="typing"></div>
+      <div id="input-area">
+        <input type="text" id="nickname" placeholder="Твой ник (нажми Enter)" autocomplete="off"/>
+        <input type="text" id="message" placeholder="Напиши сообщение..." autocomplete="off" disabled/>
+        <button id="send" disabled>Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const room = "<%= room %>";
+
+    const messages = document.getElementById('messages');
+    const usersList = document.getElementById('users-list');
+    const nicknameInput = document.getElementById('nickname');
+    const messageInput = document.getElementById('message');
+    const sendButton = document.getElementById('send');
+    const typingDiv = document.getElementById('typing');
+
+    let nickname = '';
+
+    // Вход в комнату
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && nicknameInput.value.trim()) {
+        nickname = nicknameInput.value.trim();
+        socket.emit('joinRoom', { room, nick: nickname });
+        nicknameInput.disabled = true;
+        messageInput.disabled = false;
+        sendButton.disabled = false;
+        messageInput.focus();
+      }
+    });
+
+    function sendMessage() {
+      const msg = messageInput.value.trim();
+      if (msg) {
+        socket.emit('chatMessage', msg);
+        addMessage({ nickname: 'Ты', message: msg }, true);
+        messageInput.value = '';
+      }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    messageInput.addEventListener('input', () => {
+      socket.emit('typing', messageInput.value.length > 0);
+    });
+
+    function addMessage(data, isMy = false) {
+      const div = document.createElement('div');
+      div.classList.add('message');
+      if (isMy) div.classList.add('my-message');
+      div.innerHTML = `<strong>${data.nickname}:</strong> ${data.message}`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function updateUsers(users) {
+      usersList.innerHTML = '';
+      users.forEach(user => {
+        const li = document.createElement('li');
+        li.textContent = user;
+        usersList.appendChild(li);
+      });
+    }
+
+    // События
+    socket.on('chatMessage', (data) => addMessage(data));
+    socket.on('userJoined', (msg) => {
+      const div = document.createElement('div');
+      div.style.color = 'green'; div.style.fontStyle = 'italic'; div.textContent = msg;
+      messages.appendChild(div); messages.scrollTop = messages.scrollHeight;
+    });
+    socket.on('userLeft', (msg) => {
+      const div = document.createElement('div');
+      div.style.color = 'red'; div.style.fontStyle = 'italic'; div.textContent = msg;
+      messages.appendChild(div); messages.scrollTop = messages.scrollHeight;
+    });
+    socket.on('updateUsers', (users) => updateUsers(users));
+    socket.on('typing', (data) => {
+      if (data.isTyping) {
+        typingDiv.textContent = `${data.nickname} печатает...`;
+      } else {
+        typingDiv.textContent = '';
+      }
+    });
+  </script>
+</body>
+</html>
