@@ -6,79 +6,116 @@ const { Server } = require('socket.io');
 const io = new Server(server);
 
 app.set('view engine', 'ejs');
-app.use(express.static('public')); // для будущих стилей/картинок
+app.use(express.static('public'));
 
-// Главная страница
 app.get('/', (req, res) => {
-  const room = req.query.room || 'общий';
+  const room = req.query.room || 'general';
   res.render('index', { room });
 });
 
-// Хранение пользователей по комнатам
-const rooms = {}; // например: rooms['пацаны'] = { user1: socket, user2: socket }
+const rooms = {};
+const roomHistory = {};
+const MAX_HISTORY_MESSAGES = 50;
+
+function ensureRoom(roomName) {
+  if (!rooms[roomName]) {
+    rooms[roomName] = {};
+  }
+  if (!roomHistory[roomName]) {
+    roomHistory[roomName] = [];
+  }
+}
+
+function pushHistory(roomName, message) {
+  ensureRoom(roomName);
+  roomHistory[roomName].push(message);
+  if (roomHistory[roomName].length > MAX_HISTORY_MESSAGES) {
+    roomHistory[roomName].shift();
+  }
+}
 
 io.on('connection', (socket) => {
-  console.log('Подключился:', socket.id);
+  let currentRoom = null;
+  let nickname = 'Anonymous';
 
-  let currentRoom = 'общий';
-  let nickname = 'Аноним';
-
-  // Присоединение к комнате
   socket.on('joinRoom', ({ room, nick }) => {
-    // Выходим из старой комнаты
+    const nextRoom = (room || 'general').trim();
+    const nextNickname = (nick || 'Anonymous').trim() || 'Anonymous';
+
     if (currentRoom && rooms[currentRoom]) {
       socket.leave(currentRoom);
       delete rooms[currentRoom][socket.id];
-      socket.to(currentRoom).emit('userLeft', `${nickname} вышел из чата`);
-      io.to(currentRoom).emit('updateUsers', Object.values(rooms[currentRoom] || {}).map(s => s.nickname));
+
+      io.to(currentRoom).emit(
+        'systemMessage',
+        `${nickname} left the room`
+      );
+      io.to(currentRoom).emit(
+        'updateUsers',
+        Object.values(rooms[currentRoom]).map((user) => user.nickname)
+      );
     }
 
-    // Входим в новую
-    currentRoom = room;
-    nickname = nick || 'Аноним';
+    ensureRoom(nextRoom);
+
+    currentRoom = nextRoom;
+    nickname = nextNickname;
 
     socket.nickname = nickname;
     socket.currentRoom = currentRoom;
 
-    // Создаём комнату если нет
-    if (!rooms[currentRoom]) rooms[currentRoom] = {};
-
     rooms[currentRoom][socket.id] = socket;
     socket.join(currentRoom);
 
-    // Уведомления и список юзеров
-    socket.to(currentRoom).emit('userJoined', `${nickname} зашёл в чат`);
-    io.to(currentRoom).emit('updateUsers', Object.values(rooms[currentRoom]).map(s => s.nickname));
+    socket.emit('chatHistory', roomHistory[currentRoom]);
 
-    // Отправляем историю (пока пустую, потом добавим)
-    socket.emit('chatHistory', []);
+    socket.to(currentRoom).emit('systemMessage', `${nickname} joined the room`);
+    io.to(currentRoom).emit(
+      'updateUsers',
+      Object.values(rooms[currentRoom]).map((user) => user.nickname)
+    );
   });
 
-  // Сообщение
   socket.on('chatMessage', (msg) => {
-    if (!socket.currentRoom) return;
-    const data = { nickname, message: msg };
+    const trimmedMessage = (msg || '').trim();
+    if (!socket.currentRoom || !trimmedMessage) {
+      return;
+    }
+
+    const data = {
+      nickname,
+      message: trimmedMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    pushHistory(socket.currentRoom, data);
     io.to(socket.currentRoom).emit('chatMessage', data);
   });
 
-  // Печатает
   socket.on('typing', (isTyping) => {
-    if (!socket.currentRoom) return;
-    socket.to(socket.currentRoom).emit('typing', { nickname, isTyping });
+    if (!socket.currentRoom) {
+      return;
+    }
+    socket
+      .to(socket.currentRoom)
+      .emit('typing', { nickname, isTyping: Boolean(isTyping) });
   });
 
-  // Отключение
   socket.on('disconnect', () => {
     if (socket.currentRoom && rooms[socket.currentRoom]) {
       delete rooms[socket.currentRoom][socket.id];
-      socket.to(socket.currentRoom).emit('userLeft', `${nickname} вышел из чата`);
-      io.to(socket.currentRoom).emit('updateUsers', Object.values(rooms[socket.currentRoom]).map(s => s.nickname));
+      socket
+        .to(socket.currentRoom)
+        .emit('systemMessage', `${nickname} left the room`);
+      io.to(socket.currentRoom).emit(
+        'updateUsers',
+        Object.values(rooms[socket.currentRoom]).map((user) => user.nickname)
+      );
     }
-    console.log('Отключился:', socket.id);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`My Guys alpha 1.1 запущен на http://localhost:${PORT}`);
+  console.log(`My Guys Messenger v0.1 is running on http://localhost:${PORT}`);
 });
