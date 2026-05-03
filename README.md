@@ -1,0 +1,1 @@
+# MyGuys Messenger \n\n**Alpha 1.0** — Первый рабочий прототип настоящего мессенджера.\n\n## Как запустить\n\n```bash\nnpm install\nnpm run dev\n```
