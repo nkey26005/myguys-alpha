@@ -1,19 +1,20 @@
 {
   "name": "myguys-alpha",
-  "version": "1.0.0-alpha.1",
-  "description": "MyGuys Messenger Alpha 1.0 - Real-time chat",
+  "version": "1.1.0-alpha",
+  "description": "MyGuys Messenger Alpha 1.1",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "ejs": "^3.1.10",
+    "sqlite3": "^5.1.7",
     "cors": "^2.8.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.4"
   }
 }
