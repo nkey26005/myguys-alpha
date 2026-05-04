@@ -1,73 +1,60 @@
-import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*"
-  }
-});
+const server = http.createServer(app);
+const io = new Server(server);
 
-// In-memory storage
-let messages = [];
-let users = new Map(); // socket.id -> username
-
-app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use(express.static('public'));
 
-// Main page
+// Простая база данных в памяти для Alpha 1.1
+let messages = [];
+let users = new Map();
+
 app.get('/', (req, res) => {
-  res.render('index', { title: 'MyGuys Messenger' });
+  res.render('index', { version: '1.1' });
 });
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  // Join with username
   socket.on('join', (username) => {
     users.set(socket.id, username);
-    socket.broadcast.emit('user_joined', { username, timestamp: new Date() });
+    socket.username = username;
     
-    // Send previous messages
-    socket.emit('previous_messages', messages.slice(-50));
+    socket.emit('message', {
+      type: 'system',
+      text: `Добро пожаловать в MyGuys Alpha 1.1, ${username}!`
+    });
+    
+    io.emit('user joined', username);
   });
 
-  // Handle new message
-  socket.on('send_message', (data) => {
-    const username = users.get(socket.id) || 'Anonymous';
-    const message = {
-      id: Date.now(),
-      username: username,
-      text: data.text,
-      timestamp: new Date()
+  socket.on('chat message', (msg) => {
+    const messageData = {
+      username: socket.username || 'Anonymous',
+      text: msg,
+      time: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})
     };
-    
-    messages.push(message);
-    
-    // Broadcast to all
-    io.emit('new_message', message);
+    messages.push(messageData);
+    if (messages.length > 200) messages.shift();
+    io.emit('chat message', messageData);
   });
 
-  // Disconnect
   socket.on('disconnect', () => {
     const username = users.get(socket.id);
     if (username) {
-      socket.broadcast.emit('user_left', { username });
+      io.emit('user left', username);
       users.delete(socket.id);
     }
-    console.log('User disconnected:', socket.id);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`🚀 MyGuys Messenger Alpha 1.0 running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log('🚀 MyGuys Messenger **Alpha 1.1** running on http://localhost:' + PORT);
 });
