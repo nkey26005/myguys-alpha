@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyGuys — Messenger Alpha 1.0</title>
+  <title>MyGuys — Messenger Alpha 1.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -21,7 +21,7 @@
         <div class="w-9 h-9 bg-violet-600 rounded-2xl flex items-center justify-center text-xl">👥</div>
         <div>
           <h1 class="text-2xl font-semibold tracking-tight">MyGuys</h1>
-          <p class="text-xs text-emerald-400">Alpha 1.0</p>
+          <p class="text-xs text-emerald-400">Alpha 1.1</p>
         </div>
       </div>
       
@@ -43,7 +43,7 @@
           <div class="text-2xl">🌍</div>
           <div>
             <h2 class="font-semibold">Общий чат</h2>
-            <p class="text-xs text-zinc-500">Реальное время • Alpha версия</p>
+            <p class="text-xs text-zinc-500">Реальное время • Alpha 1.1</p>
           </div>
         </div>
       </div>
@@ -67,7 +67,7 @@
             <i class="fas fa-paper-plane"></i>
           </button>
         </div>
-        <p class="text-center text-[10px] text-zinc-500 mt-3">MyGuys Alpha 1.0 • Работает на Socket.io</p>
+        <p class="text-center text-[10px] text-zinc-500 mt-3">MyGuys Alpha 1.1 • Работает на Socket.io + SQLite</p>
       </div>
     </div>
   </div>
@@ -116,7 +116,7 @@
 
     // Socket listeners
     socket.on('connect', () => {
-      console.log('%c✅ Подключено к MyGuys Alpha 1.0', 'color: violet; font-weight: bold');
+      console.log('%c✅ Подключено к MyGuys Alpha 1.1', 'color: violet; font-weight: bold');
     });
 
     socket.on('previous_messages', (msgs) => {
